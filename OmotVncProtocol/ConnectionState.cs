@@ -14,7 +14,7 @@
 // </copyright>
 // -----------------------------------------------------------------------------
 
-namespace PollRobots.OmotVncProtocol
+namespace PollRobots.OmotVnc.Protocol
 {
     /// <summary>
     /// Used to describe the state of a connection.

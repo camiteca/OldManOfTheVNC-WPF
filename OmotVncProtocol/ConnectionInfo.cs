@@ -14,7 +14,7 @@
 // </copyright>
 // -----------------------------------------------------------------------------
 
-namespace PollRobots.OmotVncProtocol
+namespace PollRobots.OmotVnc.Protocol
 {
     /// <summary>Describes the current connection.</summary>
     public sealed class ConnectionInfo

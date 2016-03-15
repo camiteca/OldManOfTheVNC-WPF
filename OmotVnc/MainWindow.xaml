@@ -1,20 +1,11 @@
 ﻿<Window x:Class="OmotVnc.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Old Man of the VNC" WindowStyle="ThreeDBorderWindow">
-    <!--
-    Copyright 2012 Paul C. Roberts
-    
-    Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file 
-    except in compliance with the License. You may obtain a copy of the License at
-    
-        http://www.apache.org/licenses/LICENSE-2.0
-    
-    Unless required by applicable law or agreed to in writing, software distributed under the 
-    License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, 
-    either express or implied. See the License for the specific language governing permissions and 
-    limitations under the License.
-    -->
+        Title="Old Man of the VNC" 
+        WindowStyle="ThreeDBorderWindow"
+        xmlns:Controls="clr-namespace:PollRobots.OmotVnc.Controls;assembly=OmotVnc.Controls">
+
+    <!-- TODO: fix the IsConnected binding-->
     <Window.Resources>
         <Style TargetType="Image">
             <Setter Property="Opacity" Value="1"/>
@@ -25,80 +16,31 @@
             </Style.Triggers>
         </Style>
     </Window.Resources>
+    
     <DockPanel>
         <Menu Name="MainMenu" DockPanel.Dock="Top">
             <MenuItem Header="File">
-                <MenuItem Header="Connect..." Click="ConnectClick"/>
-                <MenuItem Header="Disconnect" Click="DisconnectClick" IsEnabled="{Binding IsConnected}"/>
+                <MenuItem Header="Connect..." Command="{Binding ConnectCommand}"/>
+                <MenuItem Header="Disconnect" Command="{Binding DisconnectCommand}"/>
                 <Separator/>
-                <MenuItem Header="Exit" Click="ExitClick"/>
+                <MenuItem Header="Exit" Command="{Binding ExitCommand}"/>
             </MenuItem>
             <MenuItem Header="Display">
                 <MenuItem Header="Zoom">
-                    <MenuItem Header="50%" Click="SetScaleClick"/>
-                    <MenuItem Header="75%" Click="SetScaleClick"/>
-                    <MenuItem Header="100%" Click="SetScaleClick"/>
-                    <MenuItem Header="150%" Click="SetScaleClick"/>
-                    <MenuItem Header="200%" Click="SetScaleClick"/>
+                    <MenuItem Header="50%" Command="{Binding SetScaleCommand}" CommandParameter="50"/>
+                    <MenuItem Header="75%" Command="{Binding SetScaleCommand}" CommandParameter="75"/>
+                    <MenuItem Header="100%" Command="{Binding SetScaleCommand}" CommandParameter="100"/>
+                    <MenuItem Header="150%" Command="{Binding SetScaleCommand}" CommandParameter="150"/>
+                    <MenuItem Header="200%" Command="{Binding SetScaleCommand}" CommandParameter="200"/>
                     <Separator/>
-                    <MenuItem Header="Fit in window" Click="SetScaleToFit"/>
+                    <MenuItem Header="Fit in window" Command="{Binding SetScaleToFitCommand}"/>
                 </MenuItem>
-                <MenuItem Header="Full Screen" Click="FullScreenClick"/>
-                <MenuItem Header="Refresh" Click="RefreshClick" IsEnabled="{Binding IsConnected}"/>
-                <MenuItem Header="Toggle local cursor" Click="ToggleLocalCursor"/>
+                <MenuItem Header="Refresh" Command="{Binding RefreshCommand}"/>
+                <MenuItem Header="Toggle local cursor" Command="{Binding ToggleLocalCursorCommand}"/>
             </MenuItem>
         </Menu>
-        <Border DockPanel.Dock="Bottom" BorderBrush="#C000" BorderThickness="0,1,0,0"
-                Visibility="{Binding ShowStatus}">
-            <Label Content="{Binding Status}" HorizontalAlignment="Left" Margin="6,3"/>
-        </Border>
-        <Grid>
-            <Border BorderBrush="#C000" BorderThickness="0,1,0,0" Name="DisplayArea"
-                SizeChanged="DisplayAreaSizeChanged">
-                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
-                          Background="#8000" Focusable="false"
-                          Name="Scroller">
-                    <Image Source="{Binding Framebuffer}" Name="DisplaySurface"
-                       Width="{Binding FrameWidth}"
-                       Height="{Binding FrameHeight}"
-                       MouseMove="HandleMouseMove"
-                       MouseUp="HandleMouseMove"
-                       MouseDown="HandleMouseMove"
-                       Keyboard.PreviewKeyDown="HandleKey"
-                       Keyboard.PreviewKeyUp="HandleKey"
-                       TextInput="HandleTextInput"
-                       Cursor="None"
-                       Focusable="true">
-                        <Image.LayoutTransform>
-                            <ScaleTransform ScaleX="{Binding ScaleX}" ScaleY="{Binding ScaleY}"/>
-                        </Image.LayoutTransform>
-                    </Image>
-                </ScrollViewer>
-            </Border>
-            <Grid Name="Bell" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="10" Width="200" Height="200"
-                  IsHitTestVisible="False" Opacity="0.0">
-                <Rectangle>
-                    <Rectangle.Fill>
-                        <DrawingBrush>
-                            <DrawingBrush.Drawing>
-                                <DrawingGroup>
-                                    <GeometryDrawing Geometry="M 50,0 C 70 0 70 15 75 35 C 80 55 90 70 100 75 C 100 75 85 90 50 90
-                                                               C 15 90 0 75 0 75 C 10 70 20 55 25 35 C 30 15 30 0 50 0"
-                                                     Brush="Orange">
-                                        <GeometryDrawing.Pen>
-                                            <Pen Brush="Black" Thickness="3"/>
-                                        </GeometryDrawing.Pen>
-                                    </GeometryDrawing>
-                                    <GeometryDrawing Brush="#CFFF" Geometry="M 38 8 C 42 6 48 3 48 8 C 48 13 33 18 34 13 C 34 13 34 10 38 8"/>
-                                    <GeometryDrawing Brush="#4000" Geometry="M 50 65 C 70 65 90 70 90 75 C 90 80 70 85 50 85 
-                                                                             C 30 85 10 80 10 75 C 10 70 30 65 50 65"/>
-                                    <GeometryDrawing Brush="Orange" Geometry="M 65 68 c 10 0 10 10 0 10 -10 0 -10 -10 0 -10"/>
-                                </DrawingGroup>
-                            </DrawingBrush.Drawing>
-                        </DrawingBrush>
-                    </Rectangle.Fill>
-                </Rectangle>
-            </Grid>
-        </Grid>
+        
+        <Controls:VncHost x:Name="VncHost" Scale="{Binding Scale}" ScaleToFit="{Binding ScaleToFit}" />
     </DockPanel>
+    
 </Window>

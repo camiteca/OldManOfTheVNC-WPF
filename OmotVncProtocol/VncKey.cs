@@ -14,7 +14,7 @@
 // </copyright>
 // -----------------------------------------------------------------------------
 
-namespace PollRobots.OmotVncProtocol
+namespace PollRobots.OmotVnc.Protocol
 {
     using System;
 

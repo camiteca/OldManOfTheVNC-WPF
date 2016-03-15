@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <ProjectGuid>{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}</ProjectGuid>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -7,7 +7,7 @@
     <OutputType>WinExe</OutputType>
     <RootNamespace>OmotVnc</RootNamespace>
     <AssemblyName>OmotVnc</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.1</TargetFrameworkVersion>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
@@ -102,6 +102,7 @@
       <SubType>Code</SubType>
       <DependentUpon>MainWindow.xaml</DependentUpon>
     </Compile>
+    <Compile Include="RelayCommand.cs" />
     <Compile Include="ServerInfo.cs" />
     <Page Include="ConnectionDialog.xaml">
       <Generator>MSBuild:Compile</Generator>
@@ -111,6 +112,10 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
+    <ProjectReference Include="..\OmotVnc.Controls\OmotVnc.Controls.csproj">
+      <Project>{4e5dca45-71db-48ff-b2cd-87c577c5769d}</Project>
+      <Name>OmotVnc.Controls</Name>
+    </ProjectReference>
     <ProjectReference Include="..\OmotVncProtocol\OmotVncProtocol.csproj">
       <Project>{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}</Project>
       <Name>OmotVncProtocol</Name>
@@ -143,5 +148,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+    <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
 </Project>

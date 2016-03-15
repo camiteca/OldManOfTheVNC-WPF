@@ -14,7 +14,7 @@
 // </copyright>
 // -----------------------------------------------------------------------------
 
-namespace PollRobots.OmotVncProtocol
+namespace PollRobots.OmotVnc.Protocol
 {
     using System;
     using System.Collections.Generic;
@@ -115,9 +115,9 @@ namespace PollRobots.OmotVncProtocol
         {
             this.readStream = readStream;
             this.writeStream = writeStream;
-            this.onRectangle = rectangleAction ?? (_ => { });
-            this.onConnectionStateChange = connectionStateChangeAction ?? (_ => { });
-            this.onException = exceptionAction ?? (_ => { });
+            onRectangle = rectangleAction ?? (_ => { });
+            onConnectionStateChange = connectionStateChangeAction ?? (_ => { });
+            onException = exceptionAction ?? (_ => { });
         }
 
         /// <summary>The supported server messages.</summary>
@@ -148,15 +148,15 @@ namespace PollRobots.OmotVncProtocol
         {
             get
             {
-                return this.state;
+                return state;
             }
 
             private set
             {
-                if (value != this.state)
+                if (value != state)
                 {
-                    this.state = value;
-                    this.onConnectionStateChange(this.state);
+                    state = value;
+                    onConnectionStateChange(this.state);
                 }
             }
         }
@@ -222,8 +222,8 @@ namespace PollRobots.OmotVncProtocol
         {
             using (var old = this.readStream)
             {
-                this.readStream = null;
-                this.ConnectionState = OmotVncProtocol.ConnectionState.Disconnected;
+                readStream = null;
+                ConnectionState = ConnectionState.Disconnected;
             }
         }
 
@@ -252,9 +252,9 @@ namespace PollRobots.OmotVncProtocol
         {
             try
             {
-                using (await this.exclusiveLock.Enter())
+                using (await exclusiveLock.Enter())
                 {
-                    if (!this.Initialized)
+                    if (!Initialized)
                     {
                         throw new InvalidOperationException("Unable to start");
                     }
@@ -262,12 +262,13 @@ namespace PollRobots.OmotVncProtocol
             }
             catch (Exception e)
             {
-                this.onException(e);
+                onException(e);
                 throw;
             }
 
             await Task.Yield();
-            var ignored = Task.Run(() => this.WaitForServerPacket());
+
+            var ignored = Task.Run(() => WaitForServerPacket());
         }
 
         /// <summary>Handles the update message; this sends an update request
@@ -276,9 +277,9 @@ namespace PollRobots.OmotVncProtocol
         /// <returns>An async task.</returns>
         public override async Task UpdateAsync(bool refresh)
         {
-            using (await this.exclusiveLock.Enter())
+            using (await exclusiveLock.Enter())
             {
-                if (this.pendingUpdateResponse > 0 && !refresh)
+                if (pendingUpdateResponse > 0 && !refresh)
                 {
                     return;
                 }
@@ -290,22 +291,22 @@ namespace PollRobots.OmotVncProtocol
                     packet[0] = 3;
                     packet[1] = (byte)(refresh ? 0 : 1);
 
-                    packet[6] = (byte)((this.Width >> 8) & 0xFF);
-                    packet[7] = (byte)(this.Width & 0xFF);
-                    packet[8] = (byte)((this.Height >> 8) & 0xFF);
-                    packet[9] = (byte)(this.Height & 0xFF);
+                    packet[6] = (byte)((Width >> 8) & 0xFF);
+                    packet[7] = (byte)(Width & 0xFF);
+                    packet[8] = (byte)((Height >> 8) & 0xFF);
+                    packet[9] = (byte)(Height & 0xFF);
 
                     using (var cancellation = new CancellationTokenSource())
                     {
                         cancellation.CancelAfter(DefaultTimeout);
-                        Interlocked.Increment(ref this.pendingUpdateResponse);
-                        await this.writeStream.WriteAsync(packet, 0, packet.Length, cancellation.Token);
-                        await this.writeStream.FlushAsync();
+                        Interlocked.Increment(ref pendingUpdateResponse);
+                        await writeStream.WriteAsync(packet, 0, packet.Length, cancellation.Token);
+                        await writeStream.FlushAsync();
                     }
                 }
                 catch (Exception e)
                 {
-                    this.Disconnected(e);
+                    Disconnected(e);
                 }
             }
         }
@@ -328,7 +329,7 @@ namespace PollRobots.OmotVncProtocol
                 return;
             }
 
-            using (await this.exclusiveLock.Enter())
+            using (await exclusiveLock.Enter())
             {
                 try
                 {
@@ -349,11 +350,11 @@ namespace PollRobots.OmotVncProtocol
                         await this.writeStream.FlushAsync();
                     }
 
-                    var ignored = Task.Run(() => this.UpdateAsync(false));
+                    var ignored = Task.Run(() => UpdateAsync(false));
                 }
                 catch (Exception e)
                 {
-                    this.Disconnected(e);
+                    Disconnected(e);
                 }
             }
         }
@@ -443,7 +444,7 @@ namespace PollRobots.OmotVncProtocol
                     throw new InvalidDataException("Cannot parse protocol version");
                 }
 
-                if (major < ProtocolMajorVersion || minor < ProtocolMinorVersion)
+                if (major < ProtocolMajorVersion && minor < ProtocolMinorVersion)
                 {
                     throw new InvalidDataException("Server protocol version is not supported");
                 }
@@ -688,14 +689,15 @@ namespace PollRobots.OmotVncProtocol
         /// <returns>A CCR task enumerator</returns>
         private async Task WaitForServerPacket()
         {
-            for (;;)
+            while(true)
             {
                 var packet = new byte[1];
 
-                var read = await this.readStream.ReadAsync(packet, 0, packet.Length);
+                var read = await readStream.ReadAsync(packet, 0, packet.Length);
+
                 if (read != packet.Length)
                 {
-                    this.RaiseProtocolException("Unable to read packet id", new InvalidDataException());
+                    RaiseProtocolException("Unable to read packet id", new InvalidDataException());
                 }
 
                 var message = (ServerMessage)packet[0];
@@ -703,20 +705,20 @@ namespace PollRobots.OmotVncProtocol
                 switch (message)
                 {
                     case ServerMessage.FramebufferUpdate:
-                        await this.ReadFramebufferUpdate();
+                        await ReadFramebufferUpdate();
                         Interlocked.Decrement(ref this.pendingUpdateResponse);
                         break;
 
                     case ServerMessage.SetColourMapEntries:
-                        this.SetColourMapEntries();
+                        SetColourMapEntries();
                         break;
 
                     case ServerMessage.Bell:
-                        this.Bell();
+                        Bell();
                         break;
 
                     case ServerMessage.ServerCutText:
-                        this.ServerCutText();
+                        ServerCutText();
                         break;
                 }
             }
@@ -733,19 +735,19 @@ namespace PollRobots.OmotVncProtocol
                 using (var cancellation = new CancellationTokenSource())
                 {
                     cancellation.CancelAfter(DefaultTimeout);
-                    await this.ReadPacketAsync(packet, cancellation.Token);
+                    await ReadPacketAsync(packet, cancellation.Token);
                 }
 
                 var count = (packet[1] << 8) | packet[2];
 
                 for (var i = 0; i < count; i++)
                 {
-                    await this.ReadRectangle();
+                    await ReadRectangle();
                 }
             }
             catch (Exception e)
             {
-                this.Disconnected(e);
+                Disconnected(e);
             }
         }
 
@@ -755,7 +757,7 @@ namespace PollRobots.OmotVncProtocol
         /// <returns>An async task.</returns>
         private async Task ReadPacketAsync(byte[] buffer, CancellationToken cancelToken)
         {
-            await this.ReadPacketAsync(buffer, 0, buffer.Length, cancelToken);
+            await ReadPacketAsync(buffer, 0, buffer.Length, cancelToken);
         }
 
         /// <summary>Reads a packet from the read stream.</summary>
@@ -767,9 +769,11 @@ namespace PollRobots.OmotVncProtocol
         private async Task ReadPacketAsync(byte[] buffer, int offset, int length, CancellationToken cancelToken)
         {
             var remaining = length;
+
             while (remaining > 0)
             {
-                var read = await this.readStream.ReadAsync(buffer, offset, remaining, cancelToken);
+                var read = await readStream.ReadAsync(buffer, offset, remaining, cancelToken);
+
                 if (read <= 0)
                 {
                     throw new InvalidDataException();
@@ -807,7 +811,7 @@ namespace PollRobots.OmotVncProtocol
             byte[] pixels;
             var size = width * height;
 
-            switch (this.pixelFormat.BitsPerPixel)
+            switch (pixelFormat.BitsPerPixel)
             {
                 case 8:
                     pixels = new byte[size];
@@ -886,7 +890,7 @@ namespace PollRobots.OmotVncProtocol
                 using (var cancellation = new CancellationTokenSource())
                 {
                     cancellation.CancelAfter(DefaultTimeout);
-                    await this.ReadPacketAsync(packet, cancellation.Token);
+                    await ReadPacketAsync(packet, cancellation.Token);
                 }
 
                 exception = new Exception(reason + Encoding.UTF8.GetString(packet, 0, packet.Length));
@@ -905,7 +909,7 @@ namespace PollRobots.OmotVncProtocol
         /// <param name="exception">The exception causing the disconnection.</param>
         private void RaiseProtocolException(string message, Exception exception)
         {
-            this.Disconnected(new Exception(message, exception));
+            Disconnected(new Exception(message, exception));
         }
     }
 }
