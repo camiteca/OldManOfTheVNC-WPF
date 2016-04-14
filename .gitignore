@@ -188,3 +188,4 @@ _Pvt_Extensions/
 ModelManifest.xml
 
 .localhistory/
+*.nupkg

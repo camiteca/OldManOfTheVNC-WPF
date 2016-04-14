@@ -116,9 +116,9 @@
       <Project>{4e5dca45-71db-48ff-b2cd-87c577c5769d}</Project>
       <Name>OmotVnc.Controls</Name>
     </ProjectReference>
-    <ProjectReference Include="..\OmotVncProtocol\OmotVncProtocol.csproj">
+    <ProjectReference Include="..\OmotVncProtocol\OmotVnc.Protocol.csproj">
       <Project>{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}</Project>
-      <Name>OmotVncProtocol</Name>
+      <Name>OmotVnc.Protocol</Name>
     </ProjectReference>
     <COMReference Include="Bonjour">
       <Guid>{18FBED6D-F2B7-4EC8-A4A4-46282E635308}</Guid>

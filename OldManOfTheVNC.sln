@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.24720.0
+VisualStudioVersion = 14.0.25123.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OmotVncProtocol", "OmotVncProtocol\OmotVncProtocol.csproj", "{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OmotVnc.Protocol", "OmotVncProtocol\OmotVnc.Protocol.csproj", "{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OmotVnc", "OmotVnc\OmotVnc.csproj", "{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}"
 EndProject
