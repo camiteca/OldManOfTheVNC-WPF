@@ -278,6 +278,7 @@ namespace PollRobots.OmotVnc.Controls
         public async Task ConnectAsync(string server, int port, string password)
         {
             ConnectionStatusStringVisibility = Visibility.Visible;
+
             SetStatusText("Connecting to " + server);
             
             try
@@ -851,12 +852,7 @@ namespace PollRobots.OmotVnc.Controls
 
         public void RaisePropertyChanged([CallerMemberName]string propertyName = "")
         {
-            var propertyChangedEventHandler = PropertyChanged;
-
-            if (propertyChangedEventHandler != null)
-            {
-                propertyChangedEventHandler(this, new PropertyChangedEventArgs(propertyName));
-            }
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
 }
