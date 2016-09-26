@@ -45,8 +45,7 @@ namespace PollRobots.OmotVnc.Protocol
         /// <summary>Initializes the connection</summary>
         /// <param name="shareDesktop">Indicates whether the desktop is being
         /// shared.</param>
-        /// <returns>Remote name for the connection.</returns>
-        public abstract Task<string> InitializeAsync(bool shareDesktop);
+        public abstract Task InitializeAsync(bool shareDesktop);
 
         /// <summary>Starts the active protocol</summary>
         /// <returns>An async task.</returns>

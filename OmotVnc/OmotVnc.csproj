@@ -58,6 +58,23 @@
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
     <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+    <DebugType>Full</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>None</DebugType>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
+  </PropertyGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.Targets" />
   <ItemGroup>
     <Reference Include="PresentationCore">
@@ -112,14 +129,6 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
-    <ProjectReference Include="..\OmotVnc.Controls\OmotVnc.Controls.csproj">
-      <Project>{4e5dca45-71db-48ff-b2cd-87c577c5769d}</Project>
-      <Name>OmotVnc.Controls</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\OmotVncProtocol\OmotVnc.Protocol.csproj">
-      <Project>{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}</Project>
-      <Name>OmotVnc.Protocol</Name>
-    </ProjectReference>
     <COMReference Include="Bonjour">
       <Guid>{18FBED6D-F2B7-4EC8-A4A4-46282E635308}</Guid>
       <VersionMajor>1</VersionMajor>
@@ -150,5 +159,10 @@
     <None Include="app.config" />
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="..\OmotVnc.Controls\OmotVnc.Controls.csproj">
+      <Project>{4e5dca45-71db-48ff-b2cd-87c577c5769d}</Project>
+      <Name>OmotVnc.Controls</Name>
+    </ProjectReference>
+  </ItemGroup>
 </Project>

@@ -36,8 +36,9 @@ namespace PollRobots.OmotVnc.Protocol
     /// <summary>The service that manages a connection to a VNC server.</summary>
     public sealed class Connection : ConnectionOperations, IDisposable
     {
-        /// <summary>The length of the protocol version packet.</summary>
-        private const int ProtocolVersionLength = 12;
+        private const int VNC_SECURITY_PROTOCOL_INVALID = 0;
+        private const int VNC_SECURITY_PROTOCOL_NONE = 1;
+        private const int VNC_SECURITY_PROTOCOL_VNCAUTHENTICATION = 2;
 
         /// <summary>The first 4 characters of the protocol version packet.</summary>
         private const string ProtocolVersionStart = "RFB ";
@@ -51,15 +52,8 @@ namespace PollRobots.OmotVnc.Protocol
         /// <summary>The client protocol version packet.</summary>
         private const string ClientProtocolVersion = "RFB 003.008\n";
 
-        /// <summary>The length of the security nonce.</summary>
-        private const int SecurityNonceLength = 16;
-
-        /// <summary>Length of the server initialize header.</summary>
-        private const int ServerInitHeaderLength = 24;
-
         /// <summary>The supported security protocols</summary>
-        /// <remarks>2 means requires password, 1 means no password required</remarks>
-        private static readonly byte[] SecurityProtocols = { 2, 1 };
+        private static readonly byte[] SecurityProtocols = { VNC_SECURITY_PROTOCOL_VNCAUTHENTICATION, VNC_SECURITY_PROTOCOL_NONE };
 
         /// <summary>The default timeout when talking to a server</summary>
         /// <remarks>THis presupposes that the service is close in network 
@@ -78,9 +72,6 @@ namespace PollRobots.OmotVnc.Protocol
 
         /// <summary>The connection output stream.</summary>
         private Stream writeStream;
-
-        /// <summary>The security nonce for the connection.</summary>
-        private byte[] nonce;
 
         /// <summary>The pixel format being used.</summary>
         private PixelFormat pixelFormat;
@@ -120,22 +111,6 @@ namespace PollRobots.OmotVnc.Protocol
             onException = exceptionAction ?? (_ => { });
         }
 
-        /// <summary>The supported server messages.</summary>
-        private enum ServerMessage
-        {
-            /// <summary>The frame buffer is updated.</summary>
-            FramebufferUpdate = 0,
-
-            /// <summary>Update the palette</summary>
-            SetColourMapEntries = 1,
-
-            /// <summary>Sound the bell</summary>
-            Bell = 2,
-
-            /// <summary>Cut text on the server.</summary>
-            ServerCutText = 3
-        }
-
         /// <summary>
         /// Gets a value indicating whether a password is required.
         /// </summary>
@@ -156,7 +131,7 @@ namespace PollRobots.OmotVnc.Protocol
                 if (value != state)
                 {
                     state = value;
-                    onConnectionStateChange(this.state);
+                    onConnectionStateChange(state);
                 }
             }
         }
@@ -220,7 +195,7 @@ namespace PollRobots.OmotVnc.Protocol
         /// <summary>Implements the Dispose method.</summary>
         public void Dispose()
         {
-            using (var old = this.readStream)
+            using (var old = readStream)
             {
                 readStream = null;
                 ConnectionState = ConnectionState.Disconnected;
@@ -233,15 +208,15 @@ namespace PollRobots.OmotVnc.Protocol
         {
             try
             {
-                using (await this.exclusiveLock.Enter())
+                using (await exclusiveLock.Enter())
                 {
-                    this.Dispose();
+                    Dispose();
                     await Task.Yield();
                 }
             }
             catch (Exception e)
             {
-                this.onException(e);
+                onException(e);
             }
         }
 
@@ -299,7 +274,9 @@ namespace PollRobots.OmotVnc.Protocol
                     using (var cancellation = new CancellationTokenSource())
                     {
                         cancellation.CancelAfter(DefaultTimeout);
+
                         Interlocked.Increment(ref pendingUpdateResponse);
+
                         await writeStream.WriteAsync(packet, 0, packet.Length, cancellation.Token);
                         await writeStream.FlushAsync();
                     }
@@ -324,7 +301,8 @@ namespace PollRobots.OmotVnc.Protocol
         public override async Task SetPointerAsync(int buttons, int x, int y, bool isHighPriority)
         {
             var now = DateTime.UtcNow;
-            if (!isHighPriority && (now - this.lastSetPointer).TotalMilliseconds < 50)
+
+            if (!isHighPriority && (now - lastSetPointer).TotalMilliseconds < 50)
             {
                 return;
             }
@@ -345,9 +323,11 @@ namespace PollRobots.OmotVnc.Protocol
                     using (var cancellation = new CancellationTokenSource())
                     {
                         cancellation.CancelAfter(DefaultTimeout);
-                        this.lastSetPointer = now;
-                        await this.writeStream.WriteAsync(packet, 0, packet.Length, cancellation.Token);
-                        await this.writeStream.FlushAsync();
+
+                        lastSetPointer = now;
+
+                        await writeStream.WriteAsync(packet, 0, packet.Length, cancellation.Token);
+                        await writeStream.FlushAsync();
                     }
 
                     var ignored = Task.Run(() => UpdateAsync(false));
@@ -369,7 +349,7 @@ namespace PollRobots.OmotVnc.Protocol
         /// <returns>An async task.</returns>
         public override async Task SendKeyAsync(bool isDown, uint key, bool update)
         {
-            using (await this.exclusiveLock.Enter())
+            using (await exclusiveLock.Enter())
             {
                 try
                 {
@@ -383,16 +363,17 @@ namespace PollRobots.OmotVnc.Protocol
                     packet[6] = (byte)((key >> 8) & 0xFF);
                     packet[7] = (byte)(key & 0xFF);
 
-                    await this.writeStream.WriteAsync(packet, 0, packet.Length);
-                    await this.writeStream.FlushAsync();
+                    await writeStream.WriteAsync(packet, 0, packet.Length);
+                    await writeStream.FlushAsync();
+
                     if (update)
                     {
-                        var ignore = Task.Run(() => this.UpdateAsync(false));
+                        var ignore = Task.Run(() => UpdateAsync(false));
                     }
                 }
                 catch (Exception e)
                 {
-                    this.Disconnected(e);
+                    Disconnected(e);
                 }
             }
         }
@@ -403,9 +384,9 @@ namespace PollRobots.OmotVnc.Protocol
         {
             return new ConnectionInfo
             {
-                Width = this.Width,
-                Height = this.Height,
-                Name = this.Name
+                Width = Width,
+                Height = Height,
+                Name = Name
             };
         }
 
@@ -413,24 +394,29 @@ namespace PollRobots.OmotVnc.Protocol
         /// <returns>A value indicating whether a password is required.</returns>
         public override async Task<bool> HandshakeAsync()
         {
-            using (await this.exclusiveLock.Enter())
-            {
-                var packet = new byte[ProtocolVersionLength];
+            const int VNC_PROTOCOL_VERSION_LENGTH = 12;
+            const int VNC_SECURITY_TYPES_ALLOWED_HEADER = 1;
 
-                if (this.ConnectionState != ConnectionState.Disconnected)
+            using (await exclusiveLock.Enter())
+            {
+                var packet = new byte[VNC_PROTOCOL_VERSION_LENGTH];
+
+                if (ConnectionState != ConnectionState.Disconnected)
                 {
                     throw new InvalidOperationException();
                 }
 
-                this.ConnectionState = ConnectionState.Handshaking;
+                ConnectionState = ConnectionState.Handshaking;
 
                 using (var cancellation = new CancellationTokenSource())
                 {
                     cancellation.CancelAfter(DefaultTimeout);
-                    await this.ReadPacketAsync(packet, cancellation.Token);
+
+                    await ReadPacketAsync(packet, cancellation.Token);
                 }
 
                 var versionString = Encoding.UTF8.GetString(packet, 0, packet.Length);
+
                 if (!versionString.StartsWith(ProtocolVersionStart, StringComparison.Ordinal))
                 {
                     throw new InvalidDataException("Expecting: " + ProtocolVersionStart);
@@ -439,7 +425,8 @@ namespace PollRobots.OmotVnc.Protocol
                 int major;
                 int minor;
                 if (!int.TryParse(versionString.Substring(4, 3), out major)
-                    || !int.TryParse(versionString.Substring(8, 3), out minor))
+                    ||
+                    !int.TryParse(versionString.Substring(8, 3), out minor))
                 {
                     throw new InvalidDataException("Cannot parse protocol version");
                 }
@@ -450,64 +437,61 @@ namespace PollRobots.OmotVnc.Protocol
                 }
 
                 packet = Encoding.UTF8.GetBytes(ClientProtocolVersion);
-                await this.writeStream.WriteAsync(packet, 0, packet.Length);
-                await this.writeStream.FlushAsync();
+
+                await writeStream.WriteAsync(packet, 0, packet.Length);
+                await writeStream.FlushAsync();
+
+                var numberOfsecurityTypesPacket =  new byte[VNC_SECURITY_TYPES_ALLOWED_HEADER];
 
                 using (var cancellation = new CancellationTokenSource())
                 {
                     cancellation.CancelAfter(DefaultTimeout);
-                    await this.ReadPacketAsync(packet, 0, 1, cancellation.Token);
+
+                    await ReadPacketAsync(numberOfsecurityTypesPacket, cancellation.Token);
                 }
 
-                var numberOfSecurityTypes = packet[0];
+                int numberOfSecurityTypes = numberOfsecurityTypesPacket[0];
+
                 if (numberOfSecurityTypes == 0)
                 {
-                    await this.ProcessConnectionError("Protocol version not supported");
+                    await ProcessConnectionError("Protocol version not supported.");
                     return true;
                 }
 
-                Debug.Assert(numberOfSecurityTypes > 0, "Number of security types:" + numberOfSecurityTypes);
-
-                packet = new byte[numberOfSecurityTypes];
+                var allowedSecurityTypesPacket = new byte[numberOfSecurityTypes];
 
                 using (var cancellation = new CancellationTokenSource())
                 {
                     cancellation.CancelAfter(DefaultTimeout);
-                    await this.ReadPacketAsync(packet, cancellation.Token);
+
+                    await ReadPacketAsync(allowedSecurityTypesPacket, cancellation.Token);
                 }
 
-                var found = 0;
-                for (var i = 0; i < SecurityProtocols.Length && found == 0; i++)
-                {
-                    var supported = SecurityProtocols[i];
+                byte securityType = allowedSecurityTypesPacket
+                    .FirstOrDefault(st => SecurityProtocols.Contains(st));
 
-                    if (packet.Any(suggested => supported == suggested))
-                    {
-                        found = supported;
-                    }
+                if (securityType == 0)
+                {
+                    throw new InvalidDataException("Unable to negotiate a security protocol.");
                 }
 
-                if (found == 0)
-                {
-                    throw new InvalidDataException("Unable to negotiate a security protocol");
-                }
+                writeStream.WriteByte(securityType);
 
-                this.writeStream.WriteByte((byte)found);
-                await this.writeStream.FlushAsync();
+                await writeStream.FlushAsync();
 
-                switch (found)
+                switch (securityType)
                 {
-                    case 1:
-                        this.RequiresPassword = false;
+                    case VNC_SECURITY_PROTOCOL_NONE:
+                        RequiresPassword = false;
                         break;
-                    case 2:
-                        this.RequiresPassword = true;
+                    case VNC_SECURITY_PROTOCOL_VNCAUTHENTICATION:
+                        RequiresPassword = true;
                         break;
                     default:
                         throw new InvalidOperationException();
                 }
 
-                return this.RequiresPassword;
+                return RequiresPassword;
             }
         }
 
@@ -516,26 +500,34 @@ namespace PollRobots.OmotVnc.Protocol
         /// <returns>An async task.</returns>
         public override async Task SendPasswordAsync(string password)
         {
-            using (await this.exclusiveLock.Enter())
+            const int VNC_SECURITY_NONCE_LENGTH = 16;
+
+            const int VNC_SECURITY_RESULT_LENGTH = 4;
+
+            const int VNC_SECURITY_RESULT_OK = 0;
+            const int VNC_SECURITY_RESULT_FAILED = 1;
+
+            using (await exclusiveLock.Enter())
             {
-                if (this.ConnectionState != ConnectionState.Handshaking || this.RequiresPassword == false)
+                if (ConnectionState != ConnectionState.Handshaking || RequiresPassword == false)
                 {
                     throw new InvalidOperationException();
                 }
 
                 if (string.IsNullOrEmpty(password))
                 {
-                    throw new ArgumentNullException("password");
+                    throw new ArgumentNullException(nameof(password));
                 }
 
-                this.ConnectionState = ConnectionState.SendingPassword;
+                ConnectionState = ConnectionState.SendingPassword;
 
-                this.nonce = new byte[SecurityNonceLength];
+                byte[] nonce = new byte[VNC_SECURITY_NONCE_LENGTH];
 
                 using (var cancellation = new CancellationTokenSource())
                 {
                     cancellation.CancelAfter(DefaultTimeout);
-                    await this.ReadPacketAsync(this.nonce, cancellation.Token);
+
+                    await ReadPacketAsync(nonce, cancellation.Token);
                 }
 
 #if NETFX_CORE
@@ -546,7 +538,7 @@ namespace PollRobots.OmotVnc.Protocol
                 ReverseByteArrayElements(key);
 
                 var cryptoKey = des.CreateSymmetricKey(CryptographicBuffer.CreateFromByteArray(key));
-                var encryptedResponse = CryptographicEngine.Encrypt(cryptoKey, CryptographicBuffer.CreateFromByteArray(this.nonce), null);
+                var encryptedResponse = CryptographicEngine.Encrypt(cryptoKey, CryptographicBuffer.CreateFromByteArray(nonce), null);
 
                 byte[] response;
                 CryptographicBuffer.CopyToByteArray(encryptedResponse, out response);
@@ -555,6 +547,7 @@ namespace PollRobots.OmotVnc.Protocol
                 var key = new byte[des.KeySize / 8];
 
                 Encoding.ASCII.GetBytes(password, 0, Math.Min(password.Length, key.Length), key, 0);
+
                 ReverseByteArrayElements(key);
 
                 des.Key = key;
@@ -562,87 +555,98 @@ namespace PollRobots.OmotVnc.Protocol
                 des.Mode = CipherMode.ECB;
                 var encryptor = des.CreateEncryptor();
 
-                var response = new byte[this.nonce.Length];
+                var response = new byte[nonce.Length];
 
-                encryptor.TransformBlock(this.nonce, 0, this.nonce.Length, response, 0);
+                encryptor.TransformBlock(nonce, 0, nonce.Length, response, 0);
 #endif
                 using (var cancellation = new CancellationTokenSource())
                 {
                     cancellation.CancelAfter(DefaultTimeout);
-                    await this.writeStream.WriteAsync(response, 0, response.Length, cancellation.Token);
-                    await this.writeStream.FlushAsync();
+
+                    await writeStream.WriteAsync(response, 0, response.Length, cancellation.Token);
+                    await writeStream.FlushAsync();
                 }
 
-                var packet = new byte[4];
+                var securityResultPacket = new byte[VNC_SECURITY_RESULT_LENGTH];
 
                 using (var cancellation = new CancellationTokenSource())
                 {
                     cancellation.CancelAfter(DefaultTimeout);
-                    await this.ReadPacketAsync(packet, cancellation.Token);
+
+                    await ReadPacketAsync(securityResultPacket, cancellation.Token);
                 }
 
-                var securityResult = ConvertBigEndianU32(packet);
+                int securityResult = ConvertBigEndianU32(securityResultPacket);
 
-                if (securityResult != 0)
+                if (securityResult != VNC_SECURITY_RESULT_OK)
                 {
-                    await this.ProcessConnectionError("Invalid password");
+                    await ProcessConnectionError("Invalid password");
+
                     return;
                 }
             }
         }
 
         /// <summary>Initialize the connection.</summary>
-        /// <param name="shareDesktop">Indicates whether the desktop is shared.</param>
+        /// <param name="shareDesktop">
+        /// Shared-flag is non-zero (true) if the server should try to share the 
+        /// desktop by leaving other clients connected, and zero(false) if it
+        /// should give exclusive access to this client by disconnecting all
+        /// other clients.
+        /// </param>
         /// <returns>An async task</returns>
-        public override async Task<string> InitializeAsync(bool shareDesktop)
+        public override async Task InitializeAsync(bool shareDesktop)
         {
-            using (await this.exclusiveLock.Enter())
+            const int VNC_SERVERINIT_HEADER_LENGTH = 24;
+
+            using (await exclusiveLock.Enter())
             {
-                if ((this.RequiresPassword && this.ConnectionState != ConnectionState.SendingPassword)
-                    || (this.RequiresPassword == false && this.ConnectionState != ConnectionState.Handshaking))
+                if ((RequiresPassword && ConnectionState != ConnectionState.SendingPassword)
+                    || 
+                    (RequiresPassword == false && ConnectionState != ConnectionState.Handshaking))
                 {
                     throw new InvalidOperationException();
                 }
 
-                this.ConnectionState = ConnectionState.Initializing;
+                ConnectionState = ConnectionState.Initializing;
 
                 using (var cancellation = new CancellationTokenSource())
                 {
                     cancellation.CancelAfter(DefaultTimeout);
+
                     var share = new byte[] { (byte)(shareDesktop ? 1 : 0) };
-                    await this.writeStream.WriteAsync(share, 0, 1, cancellation.Token);
-                    await this.writeStream.FlushAsync();
+                    await writeStream.WriteAsync(share, 0, 1, cancellation.Token);
+                    await writeStream.FlushAsync();
                 }
 
-                var packet = new byte[ServerInitHeaderLength];
+                var packet = new byte[VNC_SERVERINIT_HEADER_LENGTH];
 
                 using (var cancellation = new CancellationTokenSource())
                 {
                     cancellation.CancelAfter(DefaultTimeout);
-                    await this.ReadPacketAsync(packet, cancellation.Token);
+
+                    await ReadPacketAsync(packet, cancellation.Token);
                 }
 
-                this.Width = (packet[0] << 8) | packet[1];
-                this.Height = (packet[2] << 8) | packet[3];
+                Width = (packet[0] << 8) | packet[1];
+                Height = (packet[2] << 8) | packet[3];
 
-                this.pixelFormat = PixelFormat.FromServerInit(packet);
+                pixelFormat = PixelFormat.FromServerInit(packet);
 
-                var nameLength = ConvertBigEndianU32(packet, 20);
-
-                packet = new byte[nameLength];
+                byte[] requestNamePacket = new byte[ConvertBigEndianU32(packet, 20)];
 
                 using (var cancellation = new CancellationTokenSource())
                 {
                     cancellation.CancelAfter(DefaultTimeout);
-                    var ignored = this.ReadPacketAsync(packet, cancellation.Token);
+
+                    await ReadPacketAsync(requestNamePacket, cancellation.Token);
                 }
 
-                this.Name = Encoding.UTF8.GetString(packet, 0, packet.Length);
+                Name = Encoding.UTF8.GetString(requestNamePacket, 0, requestNamePacket.Length);
 
-                this.Initialized = true;
+                Initialized = true;
 
-                this.ConnectionState = ConnectionState.Connected;
-                return this.Name;
+                ConnectionState = ConnectionState.Connected;
             }
         }
 
@@ -689,35 +693,38 @@ namespace PollRobots.OmotVnc.Protocol
         /// <returns>A CCR task enumerator</returns>
         private async Task WaitForServerPacket()
         {
-            while(true)
+            const byte VNC_SERVERTOCLIENT_FRAMEBUFFERUPDATE = 0;
+            const byte VNC_SERVERTOCLIENT_SETCOLORMAPENTRIES = 1;
+            const byte VNC_SERVERTOCLIENT_BELL = 2;
+            const byte VNC_SERVERTOCLIENT_SERVERCUTTEXT = 3;
+
+            while (true)
             {
-                var packet = new byte[1];
+                byte[] serverMessagePacket = new byte[1];
 
-                var read = await readStream.ReadAsync(packet, 0, packet.Length);
+                var read = await readStream.ReadAsync(serverMessagePacket, 0, serverMessagePacket.Length);
 
-                if (read != packet.Length)
+                if (read != serverMessagePacket.Length)
                 {
                     RaiseProtocolException("Unable to read packet id", new InvalidDataException());
                 }
 
-                var message = (ServerMessage)packet[0];
-
-                switch (message)
+                switch (serverMessagePacket[0])
                 {
-                    case ServerMessage.FramebufferUpdate:
+                    case VNC_SERVERTOCLIENT_FRAMEBUFFERUPDATE:
                         await ReadFramebufferUpdate();
-                        Interlocked.Decrement(ref this.pendingUpdateResponse);
+                        Interlocked.Decrement(ref pendingUpdateResponse);
                         break;
 
-                    case ServerMessage.SetColourMapEntries:
+                    case VNC_SERVERTOCLIENT_SETCOLORMAPENTRIES:
                         SetColourMapEntries();
                         break;
 
-                    case ServerMessage.Bell:
+                    case VNC_SERVERTOCLIENT_BELL:
                         Bell();
                         break;
 
-                    case ServerMessage.ServerCutText:
+                    case VNC_SERVERTOCLIENT_SERVERCUTTEXT:
                         ServerCutText();
                         break;
                 }
@@ -735,6 +742,7 @@ namespace PollRobots.OmotVnc.Protocol
                 using (var cancellation = new CancellationTokenSource())
                 {
                     cancellation.CancelAfter(DefaultTimeout);
+
                     await ReadPacketAsync(packet, cancellation.Token);
                 }
 
@@ -757,102 +765,69 @@ namespace PollRobots.OmotVnc.Protocol
         /// <returns>An async task.</returns>
         private async Task ReadPacketAsync(byte[] buffer, CancellationToken cancelToken)
         {
-            await ReadPacketAsync(buffer, 0, buffer.Length, cancelToken);
-        }
-
-        /// <summary>Reads a packet from the read stream.</summary>
-        /// <param name="buffer">The buffer to fill from the network.</param>
-        /// <param name="offset">The offset in the buffer to fill from.</param>
-        /// <param name="length">The number of bytes to fetch.</param>
-        /// <param name="cancelToken">A cancellation token.</param>
-        /// <returns>An async task.</returns>
-        private async Task ReadPacketAsync(byte[] buffer, int offset, int length, CancellationToken cancelToken)
-        {
-            var remaining = length;
-
-            while (remaining > 0)
-            {
-                var read = await readStream.ReadAsync(buffer, offset, remaining, cancelToken);
-
-                if (read <= 0)
-                {
-                    throw new InvalidDataException();
-                }
-
-                remaining -= read;
-                offset += read;
-            }
+            await readStream.ReadAsync(buffer, 0, buffer.Length, cancelToken);
         }
 
         /// <summary>Read an update rectangle from the server.</summary>
         /// <returns>A CCR task enumerator</returns>
         private async Task ReadRectangle()
         {
+            const int VNC_ENCODINGS_RAW = 0;
+
             var packet = new byte[12];
 
             using (var cancellation = new CancellationTokenSource())
             {
                 cancellation.CancelAfter(DefaultTimeout);
-                await this.ReadPacketAsync(packet, cancellation.Token);
+
+                await ReadPacketAsync(packet, cancellation.Token);
             }
 
-            var left = (packet[0] << 8) | packet[1];
-            var top = (packet[2] << 8) | packet[3];
-            var width = (packet[4] << 8) | packet[5];
-            var height = (packet[6] << 8) | packet[7];
+            int left = (packet[0] << 8) | packet[1];
+            int top = (packet[2] << 8) | packet[3];
+            int width = (packet[4] << 8) | packet[5];
+            int height = (packet[6] << 8) | packet[7];
 
-            var encoding = ConvertBigEndianU32(packet, 8);
+            int encoding = ConvertBigEndianU32(packet, 8);
 
-            if (encoding != 0)
+            if(encoding == VNC_ENCODINGS_RAW)
             {
-                throw new InvalidDataException("Unexpected encoding");
+                //TODO: for now we only support Raw encoding, see https://tools.ietf.org/html/rfc6143#section-7.7
+                //throw new InvalidDataException("Unexpected encoding.");
+
+                byte[] pixelBuffer = new byte[width * height * pixelFormat.BytesPerPixel];
+
+                var rectangle = new Rectangle(left, top, width, height, pixelBuffer);
+
+                using (var cancellation = new CancellationTokenSource())
+                {
+                    cancellation.CancelAfter(DefaultTimeout);
+
+                    await ReadPacketAsync(pixelBuffer, cancellation.Token);
+                }
+
+                onRectangle(rectangle);
             }
 
-            byte[] pixels;
-            var size = width * height;
-
-            switch (pixelFormat.BitsPerPixel)
-            {
-                case 8:
-                    pixels = new byte[size];
-                    break;
-                case 16:
-                    pixels = new byte[size * 2];
-                    break;
-                case 32:
-                    pixels = new byte[size * 4];
-                    break;
-                default:
-                    throw new InvalidDataException();
-            }
-
-            var rectangle = new Rectangle(left, top, width, height, pixels);
-
-            using (var cancellation = new CancellationTokenSource())
-            {
-                cancellation.CancelAfter(DefaultTimeout);
-                await this.ReadPacketAsync(pixels, cancellation.Token);
-            }
-
-            this.onRectangle(rectangle);
+            
         }
 
         /// <summary>Setting the palette is not implemented.</summary>
         private void SetColourMapEntries()
         {
-            this.RaiseProtocolException("SetColourMapEntries", new NotImplementedException());
+            RaiseProtocolException("SetColourMapEntries", new NotImplementedException());
         }
 
         /// <summary>Sounding the bell is not implemented.</summary>
         private void Bell()
         {
-            this.FireBell();
+            FireBell();
         }
 
         /// <summary>Handling server cut text operations is not implemented</summary>
         private void ServerCutText()
         {
-            this.RaiseProtocolException("ServerCutText", new NotImplementedException());
+            RaiseProtocolException("ServerCutText", new NotImplementedException());
         }
 
         /// <summary>Called when an exception occurs that disconnects the 
@@ -861,8 +836,9 @@ namespace PollRobots.OmotVnc.Protocol
         /// disconnection.</param>
         private void Disconnected(Exception exception)
         {
-            this.state = ConnectionState.Disconnected;
-            this.onException(exception);
+            state = ConnectionState.Disconnected;
+
+            onException(exception);
         }
 
         /// <summary>Handles a connection error reported from the server.</summary>
@@ -870,37 +846,43 @@ namespace PollRobots.OmotVnc.Protocol
         /// <returns>A CCR task enumerator</returns>
         private async Task ProcessConnectionError(string reason)
         {
-            var packet = new byte[4];
+            const int VNC_SECURITYRESULT_REASON_LENGHT = 4;
+
+            var reasonLengthPacket = new byte[VNC_SECURITYRESULT_REASON_LENGHT];
 
             using (var cancellation = new CancellationTokenSource())
             {
                 cancellation.CancelAfter(DefaultTimeout);
-                await this.ReadPacketAsync(packet, cancellation.Token);
+
+                await ReadPacketAsync(reasonLengthPacket, cancellation.Token);
             }
 
-            var length = ConvertBigEndianU32(packet);
+            int length = ConvertBigEndianU32(reasonLengthPacket);
 
+            //TODO: this is kind of weird... we should check it out
             length = Math.Min(Math.Max(1024, length), 0);
 
             Exception exception;
+
             if (length > 0)
             {
-                packet = new byte[length];
+                reasonLengthPacket = new byte[length];
 
                 using (var cancellation = new CancellationTokenSource())
                 {
                     cancellation.CancelAfter(DefaultTimeout);
-                    await ReadPacketAsync(packet, cancellation.Token);
+                    await ReadPacketAsync(reasonLengthPacket, cancellation.Token);
                 }
 
-                exception = new Exception(reason + Encoding.UTF8.GetString(packet, 0, packet.Length));
+                exception = new Exception(reason + Encoding.UTF8.GetString(reasonLengthPacket, 0, reasonLengthPacket.Length));
             }
             else
             {
                 exception = new Exception(reason);
             }
 
-            this.Disconnected(exception);
+            Disconnected(exception);
+
             throw exception;
         }
 

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.25123.0
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "OmotVnc.Protocol", "OmotVncProtocol\OmotVnc.Protocol.csproj", "{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}"
 EndProject
@@ -26,26 +26,26 @@ Global
 		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Debug|Any CPU.ActiveCfg = Debug|x86
-		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Debug|Any CPU.Build.0 = Debug|x86
+		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Debug|ARM.ActiveCfg = Debug|x86
 		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Debug|x64.ActiveCfg = Debug|x86
 		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Debug|x86.ActiveCfg = Debug|x86
 		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Debug|x86.Build.0 = Debug|x86
-		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Release|Any CPU.ActiveCfg = Release|x86
-		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Release|Any CPU.Build.0 = Release|x86
+		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Release|Any CPU.Build.0 = Release|Any CPU
 		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Release|ARM.ActiveCfg = Release|x86
 		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Release|x64.ActiveCfg = Release|x86
 		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Release|x86.ActiveCfg = Release|x86
 		{057D60C5-3B84-4182-AF5D-3ACB277DC4F7}.Release|x86.Build.0 = Release|x86
-		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Debug|Any CPU.ActiveCfg = Debug|x86
-		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Debug|Any CPU.Build.0 = Debug|x86
+		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Debug|ARM.ActiveCfg = Debug|x86
 		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Debug|x64.ActiveCfg = Debug|x86
 		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Debug|x86.ActiveCfg = Debug|x86
 		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Debug|x86.Build.0 = Debug|x86
-		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Release|Any CPU.ActiveCfg = Release|x86
-		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Release|Any CPU.Build.0 = Release|x86
+		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Release|Any CPU.Build.0 = Release|Any CPU
 		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Release|ARM.ActiveCfg = Release|x86
 		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Release|x64.ActiveCfg = Release|x86
 		{D287F0C1-F369-4F8D-92DE-0CE4CC8D4B48}.Release|x86.ActiveCfg = Release|x86

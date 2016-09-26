@@ -57,6 +57,7 @@ namespace OmotVnc
         /// <param name="e">The unhandled exception arguments</param>
         private void UnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
+            MessageBox.Show(e.Exception.ToString());
             e.Handled = true;
         }
     }

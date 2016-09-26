@@ -21,6 +21,8 @@ namespace PollRobots.OmotVnc.Protocol
     /// <summary>The pixel format of rectangle updates.</summary>
     internal sealed class PixelFormat
     {
+        private int _bitsPerPixel;
+
         /// <summary>
         /// Prevents a default instance of the <see cref="PixelFormat"/> class from being created.
         /// </summary>
@@ -29,9 +31,25 @@ namespace PollRobots.OmotVnc.Protocol
         }
 
         /// <summary>
-        /// Gets the number of Bits Per Pixel.
+        /// Gets or sets the bits per pixel.
         /// </summary>
-        public int BitsPerPixel { get; private set; }
+        public int BitsPerPixel
+        {
+            get
+            {
+                return _bitsPerPixel;
+            }
+            set
+            {
+                _bitsPerPixel = value;
+                BytesPerPixel = _bitsPerPixel / 8;
+            }
+        }
+
+        /// <summary>
+        /// Gets the number of bytes per pixel.
+        /// </summary>
+        public int BytesPerPixel { get; private set; }
 
         /// <summary>
         /// Gets Depth.

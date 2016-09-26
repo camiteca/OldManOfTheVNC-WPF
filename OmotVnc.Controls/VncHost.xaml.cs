@@ -277,6 +277,8 @@ namespace PollRobots.OmotVnc.Controls
 
         public async Task ConnectAsync(string server, int port, string password)
         {
+            bool isConnected = false;
+
             ConnectionStatusStringVisibility = Visibility.Visible;
 
             SetStatusText("Connecting to " + server);
@@ -290,7 +292,9 @@ namespace PollRobots.OmotVnc.Controls
 
                 var stream = _client.GetStream();
 
-                _connection = Connection.CreateFromStream(stream, this.HandleRectangle, this.HandleConnectionState, this.HandleException);
+                _connection = Connection.CreateFromStream(stream, HandleRectangle, HandleConnectionState, HandleException);
+
+                isConnected = await DoConnect(password);
             }
             catch (Exception e)
             {
@@ -302,9 +306,11 @@ namespace PollRobots.OmotVnc.Controls
                 {
                     SetStatusText("Error connecting: " + e.Message);
                 }
+
+                isConnected = false;
             }
 
-            await DoConnect(password);
+            IsConnected = isConnected;
         }
 
         /// <summary>Disconnect from the server if possible</summary>
@@ -345,7 +351,7 @@ namespace PollRobots.OmotVnc.Controls
         /// <summary>Run the VNC protocol connection process</summary>
         /// <param name="password">The password.</param>
         /// <returns>Standard CCR task enumerator</returns>
-        private async Task DoConnect(string password)
+        private async Task<bool> DoConnect(string password)
         {
             bool requiresPassword;
 
@@ -358,7 +364,8 @@ namespace PollRobots.OmotVnc.Controls
             catch (Exception exception)
             {
                 SetStatusText("Error handshaking: ", exception);
-                return;
+
+                return false;
             }
 
             if (requiresPassword)
@@ -372,39 +379,40 @@ namespace PollRobots.OmotVnc.Controls
                 catch (Exception exception)
                 {
                     SetStatusText("Error sending password: ", exception);
-                    return;
+
+                    return false;
                 }
             }
 
             SetStatusText("Initializing...");
 
-            var name = default(string);
-
             try
             {
-                name = await _connection.InitializeAsync(true);
+                await _connection.InitializeAsync(true);
 
-                _connection.BellEvent += (s, e) => this.DoInvoke(this.HandleBell);
+                _connection.BellEvent += (s, e) => DoInvoke(HandleBell);
             }
             catch (Exception exception)
             {
                 SetStatusText("Error initializing: ", exception);
-                return;
+
+                return false;
             }
 
             try
             {
-                var connectionInfo = _connection.GetConnectionInfo();
+                ConnectionInfo connectionInfo = _connection.GetConnectionInfo();
 
                 StartFramebuffer(connectionInfo);
             }
             catch (Exception exception)
             {
-                SetStatusText("Error getting Connection info: ", exception);
-                return;
+                SetStatusText("Error getting connection info: ", exception);
+
+                return false;
             }
 
-            DoInvoke(() => IsConnected = true);
+            return true;
         }
 
         /// <summary>Initialize the frame buffer with the reported width and 
@@ -460,13 +468,20 @@ namespace PollRobots.OmotVnc.Controls
                 update.Width,
                 update.Height);
 
-            var array = update.Pixels;
+            //int stride = (Framebuffer.PixelWidth * Framebuffer.Format.BitsPerPixel + 7) / 8;
 
-            DoInvoke(() => Framebuffer.WritePixels(
-                rect,
-                array,
-                rect.Width * 4,
-                0));
+            try
+            {
+                DoInvoke(() => Framebuffer.WritePixels(
+                    rect,
+                    update.Pixels,
+                    (Framebuffer.PixelWidth * Framebuffer.Format.BitsPerPixel + 7) / 8,
+                    0));
+            }
+            catch(Exception ex)
+            {
+                //MessageBox.Show($"L{update.Left} T{update.Top} W{update.Width} H{update.Height} PLEN{update.Pixels.Length} Stride{stride}");
+            }
         }
 
         private void HandleBell()

@@ -16,8 +16,6 @@
 
 namespace PollRobots.OmotVnc.Protocol
 {
-    using System;
-
     /// <summary>Message type used to communicate a rectangle of pixels to the 
     /// client.</summary>
     public sealed class Rectangle
@@ -32,11 +30,11 @@ namespace PollRobots.OmotVnc.Protocol
         /// <param name="pixels">The pixel values of the rectangle.</param>
         public Rectangle(int left, int top, int width, int height, byte[] pixels)
         {
-            this.Left = left;
-            this.Top = top;
-            this.Width = width;
-            this.Height = height;
-            this.Pixels = pixels;
+            Left = left;
+            Top = top;
+            Width = width;
+            Height = height;
+            Pixels = pixels;
         }
 
         /// <summary>
@@ -58,7 +56,7 @@ namespace PollRobots.OmotVnc.Protocol
         /// Gets the height of the rectangle.
         /// </summary>
         public int Height { get; private set; }
-        
+
         /// <summary>
         /// Gets the pixel values of the rectangle.
         /// </summary>
