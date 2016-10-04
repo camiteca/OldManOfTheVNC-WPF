@@ -17,7 +17,7 @@ namespace PollRobots.OmotVnc.Controls
     /// <summary>
     /// Interaction logic for VncHost.xaml
     /// </summary>
-    public partial class VncHost 
+    public partial class VncHost
         : UserControl, INotifyPropertyChanged
     {
         private const string DEFAULT_CONNECTIONSTATUS_STRING = "Ready to start a connection.";
@@ -177,6 +177,18 @@ namespace PollRobots.OmotVnc.Controls
         }
 
         /// <summary>
+        /// Gets or sets a property that indicates if the bell notifications should be shown.
+        /// </summary>
+        public bool ShowBellNotifications
+        {
+            get { return (bool)GetValue(ShowBellNotificationsProperty); }
+            set { SetValue(ShowBellNotificationsProperty, value); }
+        }
+
+        public static readonly DependencyProperty ShowBellNotificationsProperty =
+            DependencyProperty.Register("ShowBellNotifications", typeof(bool), typeof(VncHost), new PropertyMetadata(false));
+
+        /// <summary>
         /// Gets or sets a value that indicates if the scale should fit the window.
         /// </summary>
         public bool ScaleToFit
@@ -188,15 +200,15 @@ namespace PollRobots.OmotVnc.Controls
         public static readonly DependencyProperty ScaleToFitProperty =
             DependencyProperty.Register("ScaleToFit", typeof(bool), typeof(VncHost), new PropertyMetadata(OnScaleFitChanged));
 
-        private static void OnScaleFitChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        private static void OnScaleFitChanged(DependencyObject sender, DependencyPropertyChangedEventArgs e)
         {
-            var vncHost = d as VncHost;
+            var vncHost = sender as VncHost;
 
             if (vncHost.FrameHeight == 0 || vncHost.FrameWidth == 0)
             {
                 vncHost.ScaleX = 1;
                 vncHost.ScaleY = 1;
-                
+
                 vncHost.Scroller.VerticalScrollBarVisibility = ScrollBarVisibility.Auto;
                 vncHost.Scroller.HorizontalScrollBarVisibility = ScrollBarVisibility.Auto;
             }
@@ -210,7 +222,6 @@ namespace PollRobots.OmotVnc.Controls
             }
         }
 
-
         /// <summary>
         /// Gets or sets a property that indicates if the local cursor should be enabled.
         /// </summary>
@@ -223,23 +234,22 @@ namespace PollRobots.OmotVnc.Controls
         public static readonly DependencyProperty UseLocalCursorProperty =
             DependencyProperty.Register("UseLocalCursor", typeof(bool), typeof(VncHost), new PropertyMetadata(OnUseLocalCursorChanged));
 
-        private static void OnUseLocalCursorChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        private static void OnUseLocalCursorChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
         {
-            var vncHost = d as VncHost;
+            var vncHost = sender as VncHost;
 
-            var current = vncHost.DisplaySurface.Cursor;
+            if (vncHost != null)
+            {
+                bool useLocalCursor = (bool)args.NewValue;
 
-            if (current == Cursors.None)
-            {
-                vncHost.DisplaySurface.Cursor = Cursors.Cross;
-            }
-            else if (current == Cursors.Cross)
-            {
-                vncHost.DisplaySurface.Cursor = null;
-            }
-            else
-            {
-                vncHost.DisplaySurface.Cursor = Cursors.None;
+                if (useLocalCursor)
+                {
+                    vncHost.DisplaySurface.Cursor = Cursors.Arrow;
+                }
+                else
+                {
+                    vncHost.DisplaySurface.Cursor = Cursors.None;
+                }
             }
         }
 
@@ -282,7 +292,7 @@ namespace PollRobots.OmotVnc.Controls
             ConnectionStatusStringVisibility = Visibility.Visible;
 
             SetStatusText("Connecting to " + server);
-            
+
             try
             {
                 _client = new TcpClient();
@@ -331,6 +341,8 @@ namespace PollRobots.OmotVnc.Controls
             }
 
             IsConnected = false;
+
+            //TODO: we should clean up the image and set the label visibility.
         }
 
         /// <summary>Handles ticks on the frame update timer.</summary>
@@ -427,19 +439,26 @@ namespace PollRobots.OmotVnc.Controls
                 FrameWidth = Math.Max(info.Width, 320);
                 FrameHeight = Math.Max(info.Height, 240);
 
+                var pixelFormat = PixelFormats.Bgr32;
+
+                if (info.PixelFormat.BitsPerPixel == 16)
+                {
+                    pixelFormat = PixelFormats.Bgr565;
+                }
+
                 Framebuffer = new WriteableBitmap(
                     FrameWidth,
                     FrameHeight,
                     96,
                     96,
-                    PixelFormats.Bgr32,
+                    pixelFormat,
                     null);
 
                 _connection.StartAsync();
                 _connection.UpdateAsync(true);
 
                 _timer = new DispatcherTimer(
-                    TimeSpan.FromSeconds(1.0 / 4),
+                    TimeSpan.FromMilliseconds(10),
                     DispatcherPriority.Background,
                     OnTimer,
                     Dispatcher);
@@ -462,37 +481,32 @@ namespace PollRobots.OmotVnc.Controls
         /// <param name="update">The update information</param>
         private void HandleRectangle(Rectangle update)
         {
-            var rect = new Int32Rect(
-                update.Left,
-                update.Top,
-                update.Width,
-                update.Height);
-
-            //int stride = (Framebuffer.PixelWidth * Framebuffer.Format.BitsPerPixel + 7) / 8;
-
-            try
+            DoInvoke(() =>
             {
-                DoInvoke(() => Framebuffer.WritePixels(
-                    rect,
-                    update.Pixels,
-                    (Framebuffer.PixelWidth * Framebuffer.Format.BitsPerPixel + 7) / 8,
-                    0));
-            }
-            catch(Exception ex)
-            {
-                //MessageBox.Show($"L{update.Left} T{update.Top} W{update.Width} H{update.Height} PLEN{update.Pixels.Length} Stride{stride}");
-            }
+                var rectangle = new Int32Rect(
+                    update.Left,
+                    update.Top,
+                    update.Width,
+                    update.Height);
+
+                int stride = (update.Width * Framebuffer.Format.BitsPerPixel + 7) / 8;
+
+                Framebuffer.WritePixels(rectangle, update.Pixels, stride, 0);
+            });
         }
 
         private void HandleBell()
         {
-            var storyboard = new Storyboard();
-            var anim = new DoubleAnimation(0.8, 0.0, new Duration(TimeSpan.FromSeconds(0.5)));
-            anim.EasingFunction = new BackEase { EasingMode = EasingMode.EaseIn };
-            Storyboard.SetTarget(anim, Bell);
-            Storyboard.SetTargetProperty(anim, new PropertyPath(OpacityProperty));
-            storyboard.Children.Add(anim);
-            storyboard.Begin();
+            if (ShowBellNotifications)
+            {
+                var storyboard = new Storyboard();
+                var animation = new DoubleAnimation(0.8, 0.0, new Duration(TimeSpan.FromSeconds(0.5)));
+                animation.EasingFunction = new BackEase { EasingMode = EasingMode.EaseInOut };
+                Storyboard.SetTarget(animation, Bell);
+                Storyboard.SetTargetProperty(animation, new PropertyPath(OpacityProperty));
+                storyboard.Children.Add(animation);
+                storyboard.Begin();
+            }
         }
 
         /// <summary>Handles a change in the connection state as reported by 
@@ -561,38 +575,64 @@ namespace PollRobots.OmotVnc.Controls
         /// connection, and the display service is focussed</remarks>
         /// <param name="sender">The parameter is not used.</param>
         /// <param name="e">The mouse move event arguments</param>
-        private void HandleMouseMove(object sender, MouseEventArgs e)
+        private async void HandleMouseMove(object sender, MouseEventArgs e)
         {
-            if (_connection == null)
+            if (_connection != null)
             {
-                return;
-            }
+                Point point = e.GetPosition(DisplaySurface);
 
-            var point = e.GetPosition(this.DisplaySurface);
+                AutoScroll(point.X, point.Y);
 
-            AutoScroll(point.X, point.Y);
-
-            if (DisplaySurface.IsFocused == false)
-            {
-                if (e.LeftButton == MouseButtonState.Pressed)
+                if (DisplaySurface.IsFocused == false && e.LeftButton == MouseButtonState.Pressed)
                 {
                     DisplaySurface.Focus();
+
                     return;
                 }
+
+                // On a conventional mouse, buttons 1, 2, and 3 correspond to the left,
+                // middle, and right buttons on the mouse.
+                int buttons = (e.LeftButton == MouseButtonState.Pressed ? 1 : 0) |
+                    (e.MiddleButton == MouseButtonState.Pressed ? 2 : 0) |
+                    (e.RightButton == MouseButtonState.Pressed ? 4 : 0);
+
+                await _connection.SetPointerAsync(buttons, (int)point.X, (int)point.Y);
             }
+        }
 
-            var buttons = (e.LeftButton == MouseButtonState.Pressed ? 1 : 0) |
-                (e.MiddleButton == MouseButtonState.Pressed ? 2 : 0) |
-                (e.RightButton == MouseButtonState.Pressed ? 4 : 0);
+        private void HandleMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (_connection != null)
+            {
+                Point point = e.GetPosition(DisplaySurface);
 
-            _connection.SetPointerAsync(buttons, (int)point.X, (int)point.Y);
+                // On a wheel mouse, each step of the wheel upwards is represented by a
+                // press and release of button 4, and each step downwards is represented 
+                // by a press and release of button 5.
+
+                byte mask = 0;
+
+                if (e.Delta > 0)
+                {
+                    mask += 8;
+                }
+                else if (e.Delta < 0)
+                {
+                    mask += 16;
+                }
+
+                if (mask != 0)
+                {
+                    _connection.SetPointerAsync(mask, (int)point.X, (int)point.Y);
+                }
+            }
         }
 
         /// <summary>Handles text input events, sending a sequence of down, up
         /// messages to the server, followed by a single update.</summary>
         /// <param name="sender">The parameter is not used.</param>
         /// <param name="e">The text input event.</param>
-        private void HandleTextInput(object sender, TextCompositionEventArgs e)
+        private async void HandleTextInput(object sender, TextCompositionEventArgs e)
         {
             if (_connection == null)
             {
@@ -601,11 +641,11 @@ namespace PollRobots.OmotVnc.Controls
 
             foreach (var character in e.Text)
             {
-                _connection.SendKeyAsync(true, character, false);
-                _connection.SendKeyAsync(false, character, false);
+                await _connection.SendKeyAsync(true, character, false);
+                await _connection.SendKeyAsync(false, character, false);
             }
 
-            _connection.UpdateAsync(false);
+            await _connection.UpdateAsync(false);
         }
 
         /// <summary>Handles key up and down events<summary>
@@ -614,7 +654,7 @@ namespace PollRobots.OmotVnc.Controls
         /// keys are mapped to left and right meta respectively.</remarks>
         /// <param name="sender">The parameter is not used.</param>
         /// <param name="e">The key event arguments.</param>
-        private void HandleKey(object sender, KeyEventArgs e)
+        private async void HandleKey(object sender, KeyEventArgs e)
         {
             if (_connection == null || e.IsRepeat)
             {
@@ -740,8 +780,7 @@ namespace PollRobots.OmotVnc.Controls
 
             e.Handled = true;
 
-            _connection.SendKeyAsync(e.IsDown, key, true);
-            _connection.UpdateAsync(false);
+            await _connection.SendKeyAsync(e.IsDown, key, update: true);
         }
 
         private char TranslateKey(bool isShifted, Key key)

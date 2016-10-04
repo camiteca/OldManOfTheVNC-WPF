@@ -33,5 +33,10 @@ namespace PollRobots.OmotVnc.Protocol
         /// Gets or sets the Height of the screen.
         /// </summary>
         public int Height { get; set; }
+
+        /// <summary>
+        /// Gets the pixel format.
+        /// </summary>
+        public PixelFormat PixelFormat { get; set; }
     }
 }

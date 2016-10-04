@@ -16,10 +16,8 @@
 
 namespace PollRobots.OmotVnc.Protocol
 {
-    using System;
-
     /// <summary>The pixel format of rectangle updates.</summary>
-    internal sealed class PixelFormat
+    public sealed class PixelFormat
     {
         private int _bitsPerPixel;
 
@@ -120,6 +118,13 @@ namespace PollRobots.OmotVnc.Protocol
             format.BlueShift = packet[16];
             
             return format;
+        }
+
+        public override string ToString()
+        {
+            return $"BitsPerPixel: {BitsPerPixel}\nDepth: {Depth}\nIsBigEndian: {IsBigEndian}\nIsTrueColor: {IsTrueColor}\n" +
+                $"RMax: {RedMax}\nGMax: {GreenMax}\nBMax: {BlueMax}\n" +
+                $"RShift:{RedShift}\nGShift:{GreenShift}\nBShift:{BlueShift}";
         }
     }
 }

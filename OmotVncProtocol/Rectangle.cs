@@ -14,6 +14,10 @@
 // </copyright>
 // -----------------------------------------------------------------------------
 
+using PollRobots.OmotVncProtocol;
+using System;
+using System.Threading.Tasks;
+
 namespace PollRobots.OmotVnc.Protocol
 {
     /// <summary>Message type used to communicate a rectangle of pixels to the 
@@ -27,14 +31,14 @@ namespace PollRobots.OmotVnc.Protocol
         /// <param name="top">The top edge of the rectangle.</param>
         /// <param name="width">The width of the rectangle.</param>
         /// <param name="height">The height of the rectangle.</param>
-        /// <param name="pixels">The pixel values of the rectangle.</param>
-        public Rectangle(int left, int top, int width, int height, byte[] pixels)
+        public Rectangle(int left, int top, int width, int height, PixelFormat pixelFormat)
         {
             Left = left;
             Top = top;
             Width = width;
             Height = height;
-            Pixels = pixels;
+            PixelFormat = pixelFormat;
+            Pixels = new byte[width * height * pixelFormat.BytesPerPixel];
         }
 
         /// <summary>
@@ -57,9 +61,42 @@ namespace PollRobots.OmotVnc.Protocol
         /// </summary>
         public int Height { get; private set; }
 
+        public PixelFormat PixelFormat { get; private set; }
+
         /// <summary>
         /// Gets the pixel values of the rectangle.
         /// </summary>
-        public byte[] Pixels { get; private set; }
+        public byte[] Pixels { get; set; }
+
+        internal async Task DecodeAsync(RfbProtocol protocol, int encoding)
+        {
+            if(encoding != 0) // raw encoding
+            {
+                throw new NotImplementedException();
+            }
+
+            await protocol.ReadPacketAsync(Pixels);
+
+            if (PixelFormat.IsBigEndian)
+            {
+                byte[] transformedPixels = new byte[Pixels.Length];
+
+                for (int i = 0; i < Pixels.Length; i += PixelFormat.BytesPerPixel)
+                {
+                    for (int j = 0; j < PixelFormat.BytesPerPixel / 2; j++)
+                    {
+                        byte tempByte1 = Pixels[i + j];
+                        byte tempByte2 = Pixels[i - 1 + (PixelFormat.BytesPerPixel - j)];
+
+                        transformedPixels[i + j] = tempByte2;
+
+                        transformedPixels[i - 1 + (PixelFormat.BytesPerPixel - j)] = tempByte1;
+
+                    }
+                }
+
+                Pixels = transformedPixels;
+            }
+        }
     }
 }

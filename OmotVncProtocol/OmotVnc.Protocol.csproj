@@ -90,14 +90,15 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BigEndianBinaryReader.cs" />
     <Compile Include="Connection.cs" />
     <Compile Include="ConnectionInfo.cs" />
     <Compile Include="ConnectionOperations.cs" />
     <Compile Include="ConnectionState.cs" />
-    <Compile Include="ExclusiveLock.cs" />
     <Compile Include="Rectangle.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="RfbProtocol.cs" />
     <Compile Include="VncKey.cs" />
     <Compile Include="PixelFormat.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

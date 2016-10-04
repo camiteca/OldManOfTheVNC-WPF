@@ -76,11 +76,7 @@ namespace PollRobots.OmotVnc.Protocol
         /// <summary>Raise the bell event.</summary>
         protected void FireBell()
         {
-            var handler = this.BellEvent;
-            if (handler != null)
-            {
-                handler(this, EventArgs.Empty);
-            }
+            BellEvent?.Invoke(this, EventArgs.Empty);
         }
     }
 }
