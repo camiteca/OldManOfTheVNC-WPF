@@ -467,17 +467,15 @@ namespace PollRobots.OmotVnc.Controls
             });
         }
 
-        public async Task UpdateAsync()
+        public async Task UpdateAsync(bool refreshEntireScreen = false)
         {
             if (_connection != null)
             {
-                await _connection.UpdateAsync(true);
+                await _connection.UpdateAsync(refreshEntireScreen);
             }
         }
 
         /// <summary>Handles an update to a rectangle in the frame buffer</summary>
-        /// <remarks>This assumes that the rectangle is completely within the
-        /// frame buffer dimensions and that the pixel format is BGR32</remarks>
         /// <param name="update">The update information</param>
         private void HandleRectangle(Rectangle update)
         {
@@ -596,11 +594,11 @@ namespace PollRobots.OmotVnc.Controls
                     (e.MiddleButton == MouseButtonState.Pressed ? 2 : 0) |
                     (e.RightButton == MouseButtonState.Pressed ? 4 : 0);
 
-                await _connection.SetPointerAsync(buttons, (int)point.X, (int)point.Y);
+                await _connection.SendPointerEventAsync((byte)buttons, (int)point.X, (int)point.Y);
             }
         }
 
-        private void HandleMouseWheel(object sender, MouseWheelEventArgs e)
+        private async void HandleMouseWheel(object sender, MouseWheelEventArgs e)
         {
             if (_connection != null)
             {
@@ -610,20 +608,25 @@ namespace PollRobots.OmotVnc.Controls
                 // press and release of button 4, and each step downwards is represented 
                 // by a press and release of button 5.
 
+                byte emptyMask = 0;
                 byte mask = 0;
 
+                
                 if (e.Delta > 0)
                 {
-                    mask += 8;
+                    // mouse wheel up
+                    mask = 8;
                 }
                 else if (e.Delta < 0)
                 {
-                    mask += 16;
+                    // mouse wheel down
+                    mask = 16;
                 }
 
                 if (mask != 0)
                 {
-                    _connection.SetPointerAsync(mask, (int)point.X, (int)point.Y);
+                    await _connection.SendPointerEventAsync(mask, (int)point.X, (int)point.Y);
+                    await _connection.SendPointerEventAsync(emptyMask, (int)point.X, (int)point.Y);
                 }
             }
         }

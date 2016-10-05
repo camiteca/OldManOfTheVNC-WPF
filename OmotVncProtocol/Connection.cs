@@ -45,6 +45,9 @@ namespace PollRobots.OmotVnc.Protocol
         private const byte VNC_SERVERTOCLIENT_BELL = 2;
         private const byte VNC_SERVERTOCLIENT_SERVERCUTTEXT = 3;
 
+        // client to server messages
+        private const byte VNC_CLIENTTOSERVER_POINTEREVENT = 5;
+
         private const int VNC_SERVERINIT_HEADER_LENGTH = 24;
 
         // security types
@@ -277,34 +280,25 @@ namespace PollRobots.OmotVnc.Protocol
         }
 
         /// <summary>
-        /// Handles the set pointer message, this sends the pointer 
-        /// position and button state to the server.
+        /// A PointerEvent message indicates either pointer movement or a pointer
+        /// button press or release.The pointer is now at (x-position, y-position),
+        /// and the current state of buttons 1 to 8 are represented by bits 0 to 7
+        /// of button-mask, respectively; 0 means up, 1 means down (pressed).
         /// </summary>
-        /// <remarks>
-        /// Setting the pointer position also causes an update.
-        /// </remarks>
-        /// <param name="buttons">The current button state.</param>
+        /// <param name="buttonMask">The mask of pointer events to send.</param>
         /// <param name="x">The pointer x coordinate.</param>
         /// <param name="y">The pointer y coordinate.</param>
-        /// <param name="isHighPriority">Indicates whether this request is high-priority. High priority requests are never ignored.</param>
         /// <returns>An async task.</returns>
-        public override async Task SetPointerAsync(int buttons, int x, int y, bool isHighPriority)
+        public override async Task SendPointerEventAsync(byte buttonMask, int x, int y)
         {
-            var now = DateTime.UtcNow;
-
-            if (!isHighPriority && (now - lastSetPointer).TotalMilliseconds < 50)
-            {
-                return;
-            }
-
             await _semaphore.WaitAsync();
 
             try
             {
                 var packet = new byte[6];
 
-                packet[0] = 5;
-                packet[1] = (byte)buttons;
+                packet[0] = VNC_CLIENTTOSERVER_POINTEREVENT;
+                packet[1] = buttonMask;
                 packet[2] = (byte)((x >> 8) & 0xFF);
                 packet[3] = (byte)(x & 0xFF);
                 packet[4] = (byte)((y >> 8) & 0xFF);
@@ -312,28 +306,23 @@ namespace PollRobots.OmotVnc.Protocol
 
                 using (var cancellation = CreateCancellationTokenSource())
                 {
-                    lastSetPointer = now;
-
                     await writeStream.WriteAsync(packet, 0, packet.Length, cancellation.Token);
                     await writeStream.FlushAsync();
                 }
             }
-            catch (Exception e)
+            catch (Exception ex)
             {
-                Disconnected(e);
+                Disconnected(ex);
             }
             finally
             {
                 _semaphore.Release();
             }
-
-            Task ignored = UpdateAsync(false);
         }
 
-        /// <summary>Handles the send key message, this sends key state change
-        /// data to the server.</summary>
-        /// <remarks>If the update flag is set in the message, this triggers an
-        /// update.</remarks>
+        /// <summary>
+        /// Handles the send key message, this sends key state change data to the server.</summary>
+        /// <remarks>If the update flag is set in the message, this triggers an update.</remarks>
         /// <param name="isDown">Indicates whether the key is down.</param>
         /// <param name="key">The key that changed.</param>
         /// <param name="update">Indicates whether this should trigger an update</param>
@@ -354,8 +343,11 @@ namespace PollRobots.OmotVnc.Protocol
                 packet[6] = (byte)((key >> 8) & 0xFF);
                 packet[7] = (byte)(key & 0xFF);
 
-                await writeStream.WriteAsync(packet, 0, packet.Length);
-                await writeStream.FlushAsync();
+                using (var cancellation = CreateCancellationTokenSource())
+                {
+                    await writeStream.WriteAsync(packet, 0, packet.Length, cancellation.Token);
+                    await writeStream.FlushAsync();
+                }
             }
             catch (Exception e)
             {
@@ -425,8 +417,11 @@ namespace PollRobots.OmotVnc.Protocol
 
                 packet = Encoding.UTF8.GetBytes(ClientProtocolVersion);
 
-                await writeStream.WriteAsync(packet, 0, packet.Length);
-                await writeStream.FlushAsync();
+                using (var cancellation = CreateCancellationTokenSource())
+                {
+                    await writeStream.WriteAsync(packet, 0, packet.Length);
+                    await writeStream.FlushAsync();
+                }
 
                 var numberOfsecurityTypesPacket = new byte[VNC_SECURITY_TYPES_ALLOWED_HEADER];
 
@@ -481,10 +476,7 @@ namespace PollRobots.OmotVnc.Protocol
         /// <returns>An async task.</returns>
         public override async Task SendPasswordAsync(string password)
         {
-            const int VNC_SECURITY_RESULT_LENGTH = 4;
-
             const int VNC_SECURITY_RESULT_OK = 0;
-            const int VNC_SECURITY_RESULT_FAILED = 1;
 
             await _semaphore.WaitAsync();
 
@@ -592,11 +584,11 @@ namespace PollRobots.OmotVnc.Protocol
             {
                 byte[] serverMessagePacket = new byte[1];
 
-                var read = await readStream.ReadAsync(serverMessagePacket, 0, serverMessagePacket.Length);
+                int read = await readStream.ReadAsync(serverMessagePacket, 0, serverMessagePacket.Length);
 
                 if (read != serverMessagePacket.Length)
                 {
-                    RaiseProtocolException("Unable to read packet id", new InvalidDataException());
+                    RaiseProtocolException("Unable to read packet id.", new InvalidDataException());
                 }
 
                 switch (serverMessagePacket[0])

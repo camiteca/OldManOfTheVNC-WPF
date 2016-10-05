@@ -58,12 +58,11 @@ namespace PollRobots.OmotVnc.Protocol
         public abstract Task UpdateAsync(bool refresh);
 
         /// <summary>Sends the current pointer position and button state.</summary>
-        /// <param name="buttons">The current button state.</param>
+        /// <param name="mask">The mask of pointer events to send.</param>
         /// <param name="x">The pointer x coordinate.</param>
         /// <param name="y">The pointer y coordinate.</param>
-        /// <param name="isHighPriority">Indicates whether this request is high-priority. High priority requests are never ignored.</param>
         /// <returns>An async task.</returns>
-        public abstract Task SetPointerAsync(int buttons, int x, int y, bool isHighPriority = true);
+        public abstract Task SendPointerEventAsync(byte mask, int x, int y);
 
         /// <summary>Sends a keyboard key state change</summary>
         /// <param name="down">Indicates whether the key is down.</param>
